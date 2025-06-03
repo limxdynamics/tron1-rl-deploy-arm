@@ -1,0 +1,8 @@
+prefix=/usr/local
+
+Name: airbot_models
+Description: Description of airbot_models
+Version: 1.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

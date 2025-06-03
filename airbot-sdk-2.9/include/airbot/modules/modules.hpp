@@ -1,0 +1,19 @@
+#ifndef MODULES_HPP
+#define MODULES_HPP
+#include <airbot/modules/boards/board_driver.hpp>
+#include <airbot/modules/boards/interface_board_base.hpp>
+#include <airbot/modules/boards/interface_board_end.hpp>
+#include <airbot/modules/controller/chain.hpp>
+#include <airbot/modules/controller/fk.hpp>
+#include <airbot/modules/controller/fk_analytic.hpp>
+#include <airbot/modules/controller/id.hpp>
+#include <airbot/modules/controller/id_chain_rne.hpp>
+#include <airbot/modules/controller/ik.hpp>
+#include <airbot/modules/controller/ik_analytic.hpp>
+#include <airbot/modules/motors/dm_motor_driver.hpp>
+#include <airbot/modules/motors/gripper485_motor_driver.hpp>
+#include <airbot/modules/motors/motor_driver.hpp>
+#include <airbot/modules/motors/od_motor_driver.hpp>
+#include <airbot/modules/motors/oid_motor_driver.hpp>
+#include <airbot/modules/tools/timer/timer.hpp>
+#endif

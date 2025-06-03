@@ -1,0 +1,5 @@
+﻿include limxsdk/*.py
+recursive-include limxsdk *.py
+recursive-include limxsdk *.so
+recursive-include limxsdk *.lib
+recursive-include limxsdk *.pyd

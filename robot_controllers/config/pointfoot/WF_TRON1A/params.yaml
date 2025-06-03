@@ -1,0 +1,124 @@
+LeggedRobotCfg:
+  joint_names:
+    - "J1"
+    - "abad_L_Joint"
+    - "abad_R_Joint"
+    - "J2"
+    - "hip_L_Joint"
+    - "hip_R_Joint"
+    - "J3"
+    - "knee_L_Joint"
+    - "knee_R_Joint"
+    - "J4"
+    - "J5"
+    - "J6"
+    - "wheel_L_Joint"
+    - "wheel_R_Joint"
+
+  init_state:
+    # target angles [rad] when action = 0.0
+    # default_joint_angle:
+    #   abad_L_Joint: 0.0
+    #   hip_L_Joint: 0.0
+    #   knee_L_Joint: 1.36
+    #   wheel_L_Joint: 0.0
+
+    #   abad_R_Joint: 0.0
+    #   hip_R_Joint: 0.0
+    #   knee_R_Joint: -1.36
+    #   wheel_R_Joint: 0.0
+    default_joint_angle:
+
+    ## order in observation !!!
+      # J1: 0.0
+      # abad_L_Joint: 0.0
+      # abad_R_Joint: 0.0
+      # J2: 0.0
+      # hip_L_Joint: 0.0
+      # hip_R_Joint: 0.0
+      # J3: 0.0
+      # knee_L_Joint: 0.0
+      # knee_R_Joint: 0.0
+      # J4: 0.0
+      # wheel_L_Joint: 0.0
+      # wheel_R_Joint: 0.0
+      # J5: 0.0
+      # J6: 0.0
+
+    ## order in action !!!
+      J1: 0.0
+      abad_L_Joint: 0.0
+      abad_R_Joint: 0.0
+      J2: 0.0
+      hip_L_Joint: 0.0
+      hip_R_Joint: 0.0
+      J3: 0.0
+      knee_L_Joint: 0.0
+      knee_R_Joint: 0.0
+      J4: 0.0
+      
+      J5: 0.0
+      J6: 0.0
+
+      wheel_L_Joint: 0.0
+      wheel_R_Joint: 0.0
+
+  control:
+    # PD Drive parameters:
+    leg_joint_stiffness: 40 #50
+    leg_joint_damping: 1.8 #6
+
+    wheel_joint_stiffness:  0.0
+    wheel_joint_damping: 0.5 #1
+
+    arm_j123_stiffness: 18
+    arm_j123_damping: 1
+    arm_j456_stiffness: 4
+    arm_j456_damping: 0.5
+
+    action_scale_pos: 0.25
+    action_scale_vel: 3 #4
+    decimation: 10
+
+    leg_joint_torque_limit: 80
+    wheel_joint_torque_limit: 40
+    arm_j123_torque_limit: 18
+    arm_j456_torque_limit: 3
+
+  normalization:
+    encoder_normalize: True
+    clip_scales:
+      clip_observations: 100.
+      clip_actions: 100.
+    obs_scales:
+      lin_vel: 2.0
+      ang_vel: 0.25
+      dof_pos: 1.0
+      dof_vel: 0.05
+      height_measurements: 5.0
+
+  user_cmd_scales:
+    lin_vel_x: 3.5
+    lin_vel_y: 0.6
+    ang_vel_yaw: 2
+    base_height: 1.0
+
+  size:
+    actions_size: 14 #8
+    observations_size: 74 # 3+3+3+1+9+1+12+14+14+14=74
+    commands_size: 11 #3+7 #4
+    obs_history_length: 5
+    encoder_output_size: 64 #3
+    gait_generator_output_size: 32
+
+  
+  imu_orientation_offset:
+    roll: 0.0
+    pitch: 0.00
+    yaw: 0.0
+
+  commands_offset:
+    x: 0.03
+  
+  max_back_x_vel_cmd:
+    x: 2
