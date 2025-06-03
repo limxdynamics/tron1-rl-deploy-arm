@@ -29,85 +29,37 @@
 
     
 
-- 安装onnxruntime依赖，下载连接：https://github.com/microsoft/onnxruntime/releases/tag/v1.10.0  。请您根据自己的操作系统和平台选择合适版本下载。如在Ubuntu 20.04 x86_64，请按下面步骤进行安装：
-  
-    ```Bash
-    wget https://github.com/microsoft/onnxruntime/releases/download/v1.10.0/onnxruntime-linux-x64-1.10.0.tgz
-    
-    tar xvf onnxruntime-linux-x64-1.10.0.tgz
-    
-    sudo cp -a onnxruntime-linux-x64-1.10.0/include/* /usr/include
-    sudo cp -a onnxruntime-linux-x64-1.10.0/lib/* /usr/lib
-    ```
+## 2. 编译运行
 
-
-
-## 2. 创建工作空间
-
-可以按照以下步骤，创建一个RL部署开发工作空间：
+可以按照以下步骤，编译运行项目：
 
 - 打开一个Bash终端。
 
-- 创建一个新目录来存放工作空间。例如，可以在用户的主目录下创建一个名为“limx_ws”的目录：
+- 下载源代码：
     ```Bash
-    mkdir -p ~/limx_ws/src
-    ```
-    
-- 下载运动控制开发接口：
-    ```Bash
-    cd ~/limx_ws/src
-    git clone https://github.com/limxdynamics/pointfoot-sdk-lowlevel.git
-    ```
-    
-- 下载Gazebo仿真器：
-    ```Bash
-    cd ~/limx_ws/src
-    git clone https://github.com/limxdynamics/pointfoot-gazebo-ros.git
-    ```
-    
-- 下载机器人模型描述文件
-    ```Bash
-    cd ~/limx_ws/src
-    git clone https://github.com/limxdynamics/robot-description.git
-    ```
-    
-- 下载可视化工具
-    ```Bash
-    cd ~/limx_ws/src
-    git clone https://github.com/limxdynamics/robot-visualization.git
-    ```
-    
-- 下载RL部署源码：
-    ```Bash
-    cd ~/limx_ws/src
-    git clone https://github.com/limxdynamics/rl-deploy-ros-cpp.git
+    git clone https://github.com/limxdynamics/tron1-rl-deploy-arm.git
     ```
     
 - 编译工程：
     ```Bash
-    cd ~/limx_ws
+    cd tron1-rl-deploy-arm
     catkin_make install
     ```
-
+    
 - 选择机器人类型
 
   - 通过 Shell 命令 `tree -L 1 src/robot-description/pointfoot ` 列出可用的机器人类型：
   
     ```
     src/robot-description/pointfoot
-    ├── PF_P441A
-    ├── PF_P441B
-    ├── PF_P441C
-    ├── PF_P441C2
-    ├── PF_TRON1A
     ├── SF_TRON1A
     └── WF_TRON1A
     ```
-  
-  - 以`PF_P441C`（请根据实际机器人类型进行替换）为例，设置机器人型号类型：
+    
+  - 以`SF_TRON1A`（请根据实际机器人类型进行替换）为例，设置机器人型号类型：
   
     ```
-    echo 'export ROBOT_TYPE=PF_P441C' >> ~/.bashrc && source ~/.bashrc
+    echo 'export ROBOT_TYPE=SF_TRON1A' >> ~/.bashrc && source ~/.bashrc
     ```
   
 - 运行仿真
