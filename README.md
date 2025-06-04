@@ -31,7 +31,7 @@
 
 ## 2. 编译运行
 
-可以按照以下步骤，编译运行项目：
+项目基于ros_control（https://wiki.ros.org/ros_control）框架实现。可以按照以下步骤，编译运行：
 
 - 打开一个Bash终端。
 
