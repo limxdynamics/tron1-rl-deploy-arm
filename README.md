@@ -62,14 +62,25 @@
     echo 'export ROBOT_TYPE=SF_TRON1A' >> ~/.bashrc && source ~/.bashrc
     ```
   
+- 打开新的命令窗口，下载虚拟遥控器：
+    ```Bash
+    git clone https://github.com/limxdynamics/robot-joystick.git
+    ```
 - 运行仿真
 
-  通过运行Shell命令启动Gazebo仿真器，然后在仿真器窗口中按 `Ctrl + Shift + R`，机器人将开始移动。您还可以通过将 `Robot Steering` 插件的发布主题设置为 `/cmd_vel` 来控制机器人的行走。
+  通过运行Shell命令启动Gazebo仿真器，然后在仿真器窗口中按 `Ctrl + Shift + R`，机器人将开始移动。
   
   
   ```
   source install/setup.bash
   roslaunch robot_hw pointfoot_hw_sim.launch
   ```
+
+  开启虚拟遥控器
+    ```Bash
+    ./robot-joystick/robot-joystick
+    ```
+  开启虚拟遥控器后，您可以通过键盘↑↓←→控制机器人前后左右移动，小键盘8/5控制机器人升高/降低，WASD控制机械臂四方向平移，IJKL控制机械臂四方向旋转，以双足为例效果如下
+
   ![](doc/simulator.gif)
 
