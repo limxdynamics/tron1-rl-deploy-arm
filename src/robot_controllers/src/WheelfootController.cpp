@@ -34,8 +34,6 @@ bool WheelfootController::init(hardware_interface::RobotHW *robot_hw, ros::NodeH
   ee_pos_cmd_rc_delta_msg_.data.resize(6+1);
   rc_ee_cmd.zero();
 
-  wheelActions_.resize(2);
-  wheelActions_<<0,0;
   return ControllerBase::init(robot_hw, nh);
 }
 
@@ -471,11 +469,7 @@ bool WheelfootController::loadRLCfg() {
     lastActions_.setZero();
     commands_.setZero();
     commandsStand_.setZero();
-    commands_.setZero();
-    commandsSit_.setZero();
     commandsMove_.setZero();
-    baseLinVel_.setZero();
-    basePosition_.setZero();
   } catch (const std::exception &e) {
     // Error handling.
     ROS_ERROR("Error in the LeggedRobotCfg: %s", e.what());
@@ -500,6 +494,7 @@ void WheelfootController::computeObservation() {
   vector3_t baseAngVel(imuSensorHandles_.getAngularVelocity()[0], imuSensorHandles_.getAngularVelocity()[1],
                         imuSensorHandles_.getAngularVelocity()[2]);
 
+  // imu offset, to be added to baseAngVel
   imu_orientation_offset[1] = 0.015; //0.01;
   imu_orientation_offset[0] = 0.0;
   vector3_t _zyx(0.0, imu_orientation_offset[1], imu_orientation_offset[0]);
@@ -520,19 +515,8 @@ void WheelfootController::computeObservation() {
     jointTor(i) = hybridJointHandles_[i].getEffort();
   }
 
-  // compute heading
-  vector3_t forward_vec(1,0,0);
-  vector3_t forward = q_wi.toRotationMatrix() * forward_vec;
-  double heading = atan2(forward[1],forward[0]);
-  headingCommand_ += commands_[2] / (100 / wheelRobotCfg_.controlCfg.decimation);
-  headingCommand_ = fmod((headingCommand_ + M_PI), (2 * M_PI));
-  if(headingCommand_ < 0.0)
-    headingCommand_ += 2 * M_PI;
-  headingCommand_-= M_PI;
-
   vector3_t commands = commands_;
   vector4_t commandsStand = commandsStand_;
-  vector4_t commandsSit = commandsSit_;
   vector4_t commandsMove = commandsMove_;
 
   vector_t actions(lastActions_);
@@ -608,16 +592,6 @@ void WheelfootController::computeObservation() {
               jointTor[10],
               jointTor[11];
 
-  vector_t gait(4);
-  gait << 1.5, 0.5, 0.5, 0.15; // trot
-  gait_index_ += 0.02 * gait(0);
-  if (gait_index_ > 1.0)
-  {
-    gait_index_ = 0.0;
-  }
-  vector_t gait_clock(2);
-  gait_clock << sin(gait_index_ * 2 * M_PI), cos(gait_index_ * 2 * M_PI);
-
   // clang-format off
   vector_t obs(observationSize_);
   obs.setZero();
@@ -650,69 +624,11 @@ void WheelfootController::computeObservation() {
   ee_mat = getRotationMatrixFromZyxEulerAngles(ee_zyx);
   ee_mat_vec <<   ee_mat(0,0), ee_mat(0,1), ee_mat(0,2),
                   ee_mat(1,0), ee_mat(1,1), ee_mat(1,2);
-  ee_pos_cmd_debug_msg_.position.x = ee_pos[0];
-  ee_pos_cmd_debug_msg_.position.y = ee_pos[1];
-  ee_pos_cmd_debug_msg_.position.z = ee_pos[2];
-
-  ee_pos_cmd_debug_msg_.orientation.x = ee_quat_vec[1];
-  ee_pos_cmd_debug_msg_.orientation.y = ee_quat_vec[2];
-  ee_pos_cmd_debug_msg_.orientation.z = ee_quat_vec[3];
-  ee_pos_cmd_debug_msg_.orientation.w = ee_quat_vec[0];
-  // ee_pos_cmd_debug_pub_.publish(ee_pos_cmd_debug_msg_);
 
   int zero_vel_cmd = 0;
   if(commands.norm() < 0.05){
     zero_vel_cmd = 1;
   }
-  
-  if(isSim_ != 1){
-    wheel_pd_.wheel_pos[0] = jointPos[12];
-    wheel_pd_.wheel_pos[1] = jointPos[13];
-    // compute total jointpos
-    if(wheel_pd_.wheel_pos[0] - wheel_pd_.wheel_pos_last[0] <= -6){
-      wheel_pd_.wheel_cnt[0] += 1;
-    }
-    else if (wheel_pd_.wheel_pos[0] - wheel_pd_.wheel_pos_last[0] >= 6)
-    {
-      wheel_pd_.wheel_cnt[0] -= 1;
-    }
-
-    if(wheel_pd_.wheel_pos[1] - wheel_pd_.wheel_pos_last[1] <= -6){
-      wheel_pd_.wheel_cnt[1] += 1;
-    }
-    else if (wheel_pd_.wheel_pos[1] - wheel_pd_.wheel_pos_last[1] >= 6)
-    {
-      wheel_pd_.wheel_cnt[1] -= 1;
-    }
-
-    wheel_pd_.wheel_pos_total[0] = wheel_pd_.wheel_cnt[0] * 2 * M_PI + wheel_pd_.wheel_pos[0];
-    wheel_pd_.wheel_pos_total[1] = wheel_pd_.wheel_cnt[1] * 2 * M_PI + wheel_pd_.wheel_pos[1];
-
-    wheel_pd_.wheel_pos_last[0] = wheel_pd_.wheel_pos[0];
-    wheel_pd_.wheel_pos_last[1] = wheel_pd_.wheel_pos[1];
-  }
-  else {
-    wheel_pd_.wheel_pos[0] = jointPos[12];
-    wheel_pd_.wheel_pos[1] = jointPos[13];
-    wheel_pd_.wheel_pos_total[0] = wheel_pd_.wheel_pos[0];
-    wheel_pd_.wheel_pos_total[1] = wheel_pd_.wheel_pos[1];
-  }
-  
-  // compute move x and move yaw
-  wheel_pd_.wheel_move_x = wheel_pd_.wheel_pos_total[0] + wheel_pd_.wheel_pos_total[1];
-  wheel_pd_.wheel_move_yaw = wheel_pd_.wheel_pos_total[0] - wheel_pd_.wheel_pos_total[1];
-
-  // pid controller compute
-  wheel_pd_.x_pid_out = 
-      wheel_pd_.x_kp * (wheel_pd_.wheel_move_x_target - wheel_pd_.wheel_move_x) 
-      + wheel_pd_.x_kd * (wheel_pd_.wheel_move_x - wheel_pd_.wheel_move_x_last);
-
-  wheel_pd_.yaw_pid_out = 
-      wheel_pd_.yaw_kp * (wheel_pd_.wheel_move_yaw_target - wheel_pd_.wheel_move_yaw) 
-      + wheel_pd_.yaw_kd * (wheel_pd_.wheel_move_yaw - wheel_pd_.wheel_move_yaw_last);
-
-  wheel_pd_.wheel_move_x_last = wheel_pd_.wheel_move_x;
-  wheel_pd_.wheel_move_yaw_last = wheel_pd_.wheel_move_yaw;
   
   obs << baseAngVel , //* wheelRobotCfg_.obsScales.angVel,                     //
       projectedGravity,
@@ -733,7 +649,6 @@ void WheelfootController::computeObservation() {
   for(int i = 0; i < commandsStand.size(); ++i)
   {
     commandsStand[i] = commandScalerStandSit[i] * commandsStand[i];
-    commandsSit[i] = commandScalerStandSit[i] * commandsSit[i];
     commandsMove[i] = commandScalerMove[i] * commandsMove[i];
   }
   if (isfirstRecObs_)

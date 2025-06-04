@@ -67,7 +67,6 @@ void SolefootController::starting(const ros::Time &time) {
   mode_ = Mode::SOLE_STAND;
 
   gaitIndex_ = 0.0;
-  needDamping_ = false;
 }
 
 // Update function called periodically
@@ -144,12 +143,6 @@ void SolefootController::handleRLSoleWalkMode()
     std::transform(actions_.begin(), actions_.end(), actions_.begin(),
                     [actionMin, actionMax](scalar_t x)
                     { return std::max(actionMin, std::min(actionMax, x)); });
-  }
-  if((std::abs(scaledCommandsSole_[3]) >= 0.70) && (std::abs(scaledCommandsSole_[0]) == 0.0 && std::abs(scaledCommandsSole_[1]) == 0.00 && std::abs(scaledCommandsSole_[2]) == 0.00)){
-    isNoCommand_ = true;
-  }
-  else{
-    isNoCommand_ = false;
   }
   // set action
   vector_t jointPos(hybridJointHandles_.size()), jointVel(hybridJointHandles_.size());
@@ -416,25 +409,6 @@ bool SolefootController::loadRLCfg() {
     if (error) {
       ROS_ERROR("Load parameters from ROS parameter server error!!!");
     }
-    if (standDuration_ <= 0.5) {
-      // ROS_ERROR("standDuration_ must be larger than 0.5!!!");
-    }
-    estimationCfg.threshold = 0.55;
-    estimationCfg.threshold_count = 100;
-
-    const char *is_sim = ::getenv("IS_SIM");
-    if (is_sim && strlen(is_sim) > 0)
-    {
-      try
-      {
-        isSim_ = std::atoi(is_sim);
-        ROS_INFO_STREAM("isSim_: " << isSim_); // using C++ stream, only one input
-      }
-      catch (const std::exception &e)
-      {
-        ROS_ERROR("IS_SIM: %s", e.what());
-      }
-    }
     encoderInputSize_ = obsHistoryLength_ * observationSize_;
     soleRobotCfg_.print();
     clearData();
@@ -531,13 +505,6 @@ void SolefootController::computeObservation() {
 
   handleExtraCommands();
 
-  // no commands in damping mode
-  if(needDamping_){
-    scaledCommandsSole_[0] = 0.0;
-    scaledCommandsSole_[1] = 0.0; 
-    scaledCommandsSole_[2] = 0.0;
-  }
-
   double modifiedAngularVelocityZ = imuSensorHandles_.getAngularVelocity()[2];
   if(std::abs(scaledCommandsSole_[2]) < 0.1 && std::abs(modifiedAngularVelocityZ) <= 0.4){
     modifiedAngularVelocityZ = 0.0;
@@ -596,20 +563,18 @@ void SolefootController::computeObservation() {
 
   vector_t obs(observationSize_);
 
-  if (mode_ == Mode::SOLE_WALK){ // yg normal mode
-    obs <<  baseAngVel,
-            projectedGravity,
-            vel_commands,
-            ee_pos,
-            ee_mat_vec,
-            base_height_cmd,
-            jointPos,
-            jointVel,
-            jointTor,
-            actions,
-            gait_phase,
-            gait_command;
-  }
+  obs <<  baseAngVel,
+          projectedGravity,
+          vel_commands,
+          ee_pos,
+          ee_mat_vec,
+          base_height_cmd,
+          jointPos,
+          jointVel,
+          jointTor,
+          actions,
+          gait_phase,
+          gait_command;
 
   // prepare for one-hot-encoder
   vector_t obs_temp(observationSize_);

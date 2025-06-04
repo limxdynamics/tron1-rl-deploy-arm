@@ -79,46 +79,12 @@ private:
     }
   };
 
-  struct WheelPDcontroller
-  {
-    double wheel_pos[2] = {0.0, 0.0};
-    double wheel_cnt[2] = {0.0, 0.0};
-
-    double wheel_pos_offset[2] = {0.0, 0.0};
-
-    double wheel_pos_last[2] = {0.0, 0.0};
-    
-    double wheel_pos_total[2] = {0.0, 0.0};
-
-    double wheel_move_x = 0.0;
-    double wheel_move_yaw = 0.0;
-
-    double wheel_move_x_target = 0.0;
-    double wheel_move_yaw_target = 0.0;
-
-    double wheel_move_x_last = 0.0;
-    double wheel_move_yaw_last = 0.0;
-
-    double x_kp = 0.05;
-    double x_kd = 0.00;
-    double yaw_kp = -0.2;
-    double yaw_kd = 0.00;
-
-    double x_pid_out = 0.0;
-    double yaw_pid_out = 0.0;
-  };
-
-  WheelPDcontroller wheel_pd_;
-
   vector3_t ee_init_pos_;
   vector3_t ee_init_rpy_;
   Eigen::Matrix3d ee_init_ori_;
 
   ros::Publisher gripper_cmd_pub_;
   std_msgs::Bool gripper_cmd_msg_;
-
-  ros::Publisher ee_pos_cmd_debug_pub_;
-  geometry_msgs::Pose ee_pos_cmd_debug_msg_;
 
   ros::Subscriber ee_pos_cmd_rc_delta_;
   std_msgs::Float32MultiArray ee_pos_cmd_rc_delta_msg_;
@@ -153,10 +119,7 @@ private:
   bool isfirstRecObs_{true};
   int encoderInputSize_, encoderOutputSize_;
 
-  vector3_t baseLinVel_;
-  vector3_t basePosition_;
   vector_t lastActions_;
-  vector_t wheelActions_;
 
   int actionsSize_;
   int commandsSize_;
