@@ -13,19 +13,6 @@
 namespace hw {
 static const std::string CONTROLLER_NAME = "/controllers/pointfoot_controller";
 
-void PointfootHW::cmdVelCallbackFromSDK(const geometry_msgs::TwistConstPtr &msg) {
-  geometry_msgs::TwistPtr twist_msg = geometry_msgs::TwistPtr();
-  twist_msg->linear.x = (msg->linear.x > 1.0) ? 1.0 : (msg->linear.x < -1.0 ? -1.0 : msg->linear.x);
-  twist_msg->linear.y = (msg->linear.y > 1.0) ? 1.0 : (msg->linear.y < -1.0 ? -1.0 : msg->linear.y);
-  twist_msg->linear.z = (msg->linear.z > 1.0) ? 1.0 : (msg->linear.z < -1.0 ? -1.0 : msg->linear.z);
-  twist_msg->angular.x = (msg->angular.x > 1.0) ? 1.0 : (msg->angular.x < -1.0 ? -1.0 : msg->angular.x);
-  twist_msg->angular.y = (msg->angular.y > 1.0) ? 1.0 : (msg->angular.y < -1.0 ? -1.0 : msg->angular.y);
-  twist_msg->angular.z = (msg->angular.z > 1.0) ? 1.0 : (msg->angular.z < -1.0 ? -1.0 : msg->angular.z);
-  sdk_twist_buffer_.writeFromNonRT(*twist_msg);
-
-  cmdVelFromSDKLast_ = ros::Time::now();
-}
-
 // Method to start the biped controller
 bool PointfootHW::startBipedController() {
   controller_manager_msgs::ListControllers list_controllers;
@@ -113,14 +100,9 @@ bool PointfootHW::init(ros::NodeHandle& root_nh, ros::NodeHandle& robot_hw_nh) {
     abort();
   }
   // Determine the specific robot configuration based on the robot type
-  // is_point_foot_ = (robot_type_.find("PF") != std::string::npos);
   is_wheel_foot_ = (robot_type_.find("WF") != std::string::npos);
   is_sole_foot_  = (robot_type_.find("SF") != std::string::npos);
 
-  // if (is_point_foot_)
-  // {
-    // controller_name_ = "/controllers/pointfoot_controller";
-  // }
   if (is_wheel_foot_)
   {
     controller_name_ = "/controllers/wheelfoot_controller";
@@ -413,13 +395,6 @@ bool PointfootHW::init(ros::NodeHandle& root_nh, ros::NodeHandle& robot_hw_nh) {
   // Initializing ROS service clients for controller
   switch_controllers_client_ = robot_hw_nh.serviceClient<controller_manager_msgs::SwitchController>("/pointfoot_hw/controller_manager/switch_controller");
   list_controllers_client_ = robot_hw_nh.serviceClient<controller_manager_msgs::ListControllers>("/pointfoot_hw/controller_manager/list_controllers");
-  // handle_mode_client_ = robot_hw_nh.serviceClient<airbot_msgs::SetInt32>("/controller/rl/handle/mode");
-  // handle_point_mode_client_ = robot_hw_nh.serviceClient<airbot_msgs::SetInt32>("/controller/point_tron_rl/handle/mode");
-  // handle_wheel_mode_client_ = robot_hw_nh.serviceClient<airbot_msgs::SetInt32>("/controller/wheel_tron_rl/handle/mode");
-  // handle_sole_mode_client_ = robot_hw_nh.serviceClient<airbot_msgs::SetInt32>("/controller/sole_tron_rl/handle/mode");
-  // cmdVelSubFromSDK_ = root_nh.subscribe<geometry_msgs::Twist>("/sdk_cmd_vel", 10, &PointfootHW::cmdVelCallbackFromSDK, this);
-  // cmd_vel_pub_ = robot_hw_nh.advertise<geometry_msgs::Twist>("/cmd_vel", false, 10);
-  // diagnostic_pub_ = robot_hw_nh.advertise<diagnostic_msgs::DiagnosticStatus>("diagnostic_value", false, 10);
   ee_rc_cmd_delta_pub_ = robot_hw_nh.advertise<std_msgs::Float32MultiArray>("/EEPose_cmd_rc", false, 10);
 
   return true;
@@ -462,8 +437,6 @@ void PointfootHW::read(const ros::Time& /*time*/, const ros::Duration& /*period*
     airbot_arm_feedback_.current_joint_q = airbot_arm_hw_->get_current_joint_q();
     airbot_arm_feedback_.current_joint_v = airbot_arm_hw_->get_current_joint_v();
     airbot_arm_feedback_.current_joint_t = airbot_arm_hw_->get_current_joint_t();
-    // std::cout << airbot_arm_feedback_.current_joint_q.size() << airbot_arm_feedback_.current_joint_v.size() << airbot_arm_feedback_.current_joint_t.size() << std::endl;
-    // std::cout << jointData_.size() << std::endl;
     for (int i = 0; i < 6; ++i) {
       jointData_[i + joint_num_].pos_ = airbot_arm_feedback_.current_joint_q[i];
       jointData_[i + joint_num_].vel_ = airbot_arm_feedback_.current_joint_v[i];
@@ -493,7 +466,6 @@ void PointfootHW::write(const ros::Time& /*time*/, const ros::Duration& /*period
     robotCmd_.Kd[i] = static_cast<float>(jointData_[i].kd_);
     robotCmd_.tau[i] = static_cast<float>(jointData_[i].tau_ff_);
     robotCmd_.mode[i] = static_cast<float>(jointData_[i].mode_);
-    // std::cout << "joint cmd: " << jointData_[i].posDes_ << " " << jointData_[i].velDes_ << " " << jointData_[i].kp_ << " " << jointData_[i].kd_ << std::endl;
   }
 
   // Publishing robot commands
@@ -512,8 +484,6 @@ void PointfootHW::write(const ros::Time& /*time*/, const ros::Duration& /*period
       armCmd_.kp[ai] = static_cast<float>(jointData_[ai + joint_num_].kp_);
       armCmd_.kd[ai] = static_cast<float>(jointData_[ai + joint_num_].kd_);
       armCmd_.tau[ai] = static_cast<float>(jointData_[ai + joint_num_].tau_ff_);
-      // armCmd_.mode[i] = static_cast<float>(jointData_[i + joint_num_].mode_);
-      // std::cout << "arm cmd: " << jointData_[ai + joint_num_].posDes_ << " " << jointData_[ai + joint_num_].velDes_ << " " << jointData_[ai + joint_num_].kp_ << " " << jointData_[ai + joint_num_].kd_ << std::endl;
     }
     if(arm_pub_flag){
       armcmd_pub_.publish(armCmd_);
@@ -537,7 +507,6 @@ void PointfootHW::write(const ros::Time& /*time*/, const ros::Duration& /*period
                                             airbot_arm_cmd_.target_joint_kp,
                                             airbot_arm_cmd_.target_joint_kd);
         grasp(!gripper_cmd_);
-        // arm_cmd_debug_.publish(arm_cmd_debug_msg_);
         if(!send_success)
         {
           ROS_WARN_STREAM("Failed to send arm command to airbot arm!!");
@@ -584,8 +553,6 @@ bool PointfootHW::setupJoints() {
     if (index < 0)
       continue;
 
-    // int index = leg_index * robot_->getMotorNumber() / 2 + joint_index;
-    // std::cout << joint.first << " " << index << std::endl;
     hardware_interface::JointStateHandle state_handle(joint.first, &jointData_[index].pos_, &jointData_[index].vel_,
                                                       &jointData_[index].tau_);
     jointStateInterface_.registerHandle(state_handle);
