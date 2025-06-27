@@ -25,7 +25,8 @@
 #include <airbot_msgs/SetInt32.h>
 #include <airbot_msgs/ArmCmd.h>
 #include <airbot_msgs/ArmState.h>
-
+#include <yaml-cpp/yaml.h>
+#include <fstream>
 namespace hw {
 
 const std::vector<std::string> CONTACT_SENSOR_NAMES = {"L_FOOT", "R_FOOT"};
@@ -66,7 +67,7 @@ public:
   bool stopBipedController();
 
 private:
-  void grasp(bool to_grasp);
+  void grasp(bool to_grasp, bool print_info);
 
   bool setupJoints();
 
@@ -105,7 +106,7 @@ private:
   ros::Subscriber armstate_sub_;
 
   ros::Subscriber gripper_cmd_sub_;
-  bool gripper_cmd_{false};
+  bool gripper_cmd_{false}, last_gripper_cmd_{false}, maintain_grasp_{false};
 
   ros::Publisher armcmd_pub_;
   ros::Publisher cmd_vel_pub_;
@@ -136,6 +137,8 @@ private:
   std::mutex rccmd_mutex_;
   // ros::Subscriber cmdVelSubFromSDK_;
   ros::Time cmdVelFromSDKLast_;
+  ros::Time baseControllerStart_;
+  int highDampingCnt_{0};
 
   limxsdk::PointFoot *robot_;
 
@@ -158,6 +161,8 @@ private:
   ros::Time low_bat_trigger_time_{0.0};
   ros::Time low_bat_continue_time_{0.0};
   int is_sim_{1};
+  bool prepare_stop_{false};
+  int prepare_stop_count_{0};
 };
 
 } // namespace hw

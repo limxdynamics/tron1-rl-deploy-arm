@@ -1,6 +1,7 @@
 <launch>
   <!-- Pass the ROBOT_TYPE environment variable to ROS parameters -->
   <param name="robot_type" value="$(env ROBOT_TYPE)" />
+  <param name="is_sim" value="false"/>
 
   <rosparam file="$(find robot_controllers)/config/controllers.yaml" command="load"/>
   <rosparam file="$(find robot_controllers)/config/pointfoot/$(env ROBOT_TYPE)/params.yaml" command="load"/>

@@ -51,36 +51,44 @@ bool PointfootHW::startBipedController() {
 
 // Method to stop the biped controller
 bool PointfootHW::stopBipedController() {
-  // Creating a message to switch controllers
-  controller_manager_msgs::SwitchController sw;
-  sw.request.stop_controllers.push_back(controller_name_);
-  sw.request.start_asap = false;
-  sw.request.strictness = controller_manager_msgs::SwitchControllerRequest::BEST_EFFORT;
-  sw.request.timeout = ros::Duration(3.0).toSec();
-
-  // Calling the controller_manager service to switch controllers
-  if (switch_controllers_client_.call(sw.request, sw.response)) {
-    if (sw.response.ok) {
-      ROS_INFO("Stop controller %s successfully.", sw.request.stop_controllers[0].c_str());
-    } else {
-      ROS_WARN("Stop controller %s failed.", sw.request.stop_controllers[0].c_str());
-    }
-  } else {
-    ROS_WARN("Failed to stop controller %s.", sw.request.stop_controllers[0].c_str());
-  }
-
-  for (int i = 0; i < robot_->getMotorNumber(); ++i) {
-    robotCmd_.q[i] = jointData_[i].posDes_ = 0.0;
-    robotCmd_.dq[i] = jointData_[i].velDes_ = 0.0;
-    robotCmd_.Kp[i] = jointData_[i].kp_ = 0.0;
-    robotCmd_.tau[i] = jointData_[i].tau_ff_ = 0.0;
-    robotCmd_.Kd[i] = jointData_[i].kd_ = 1.0;
-  }
-  robot_->publishRobotCmd(robotCmd_);
-
-  std::this_thread::sleep_for(std::chrono::nanoseconds(static_cast<int64_t>(1.0 * 1e9)));
-
+  std_msgs::Float32MultiArray ee_rc_cmd_delta_msg;
+  ee_rc_cmd_delta_msg.data.resize(8);
+  ee_rc_cmd_delta_msg.data[7] = -1;
+  ee_rc_cmd_delta_pub_.publish(ee_rc_cmd_delta_msg);
+  // std::this_thread::sleep_for(std::chrono::nanoseconds(static_cast<int64_t>(1.0 * 1e9)));
+  prepare_stop_ = true;
   return true;
+
+  // Creating a message to switch controllers
+  // controller_manager_msgs::SwitchController sw;
+  // sw.request.stop_controllers.push_back(controller_name_);
+  // sw.request.start_asap = false;
+  // sw.request.strictness = controller_manager_msgs::SwitchControllerRequest::BEST_EFFORT;
+  // sw.request.timeout = ros::Duration(3.0).toSec();
+
+  // // Calling the controller_manager service to switch controllers
+  // if (switch_controllers_client_.call(sw.request, sw.response)) {
+  //   if (sw.response.ok) {
+  //     ROS_INFO("Stop controller %s successfully.", sw.request.stop_controllers[0].c_str());
+  //   } else {
+  //     ROS_WARN("Stop controller %s failed.", sw.request.stop_controllers[0].c_str());
+  //   }
+  // } else {
+  //   ROS_WARN("Failed to stop controller %s.", sw.request.stop_controllers[0].c_str());
+  // }
+
+  // for (int i = 0; i < robot_->getMotorNumber(); ++i) {
+  //   robotCmd_.q[i] = jointData_[i].posDes_ = 0.0;
+  //   robotCmd_.dq[i] = jointData_[i].velDes_ = 0.0;
+  //   robotCmd_.Kp[i] = jointData_[i].kp_ = 0.0;
+  //   robotCmd_.tau[i] = jointData_[i].tau_ff_ = 0.0;
+  //   robotCmd_.Kd[i] = jointData_[i].kd_ = 1.0;
+  // }
+  // robot_->publishRobotCmd(robotCmd_);
+
+  // std::this_thread::sleep_for(std::chrono::nanoseconds(static_cast<int64_t>(1.0 * 1e9)));
+
+  // return true;
 }
 
 // Method to initialize the hardware interface
@@ -103,6 +111,22 @@ bool PointfootHW::init(ros::NodeHandle& root_nh, ros::NodeHandle& robot_hw_nh) {
   is_wheel_foot_ = (robot_type_.find("WF") != std::string::npos);
   is_sole_foot_  = (robot_type_.find("SF") != std::string::npos);
 
+  // read imu offset
+  try {
+    YAML::Node config = YAML::LoadFile("/opt/limx/imptdata/ctrl_TRON1_arm.yaml");
+    if (config[robot_type_ + "_imu_offset_pitch"]) {
+      imu_offset_pitch_ = config[robot_type_ + "_imu_offset_pitch"].as<double>();
+    }
+    if (config[robot_type_ + "_imu_offset_roll"]) {
+      imu_offset_roll_ = config[robot_type_ + "_imu_offset_roll"].as<double>();
+    }
+  } catch (const YAML::Exception& e) {
+    ROS_WARN_STREAM("Failed to parse YAML file: " << e.what() << " creating new empty file");
+    imu_offset_pitch_ = imu_offset_roll_ = 0.0;
+    std::ofstream fout("/opt/limx/imptdata/ctrl_TRON1_arm.yaml", std::ios::out);
+    fout.close();
+  }
+
   if (is_wheel_foot_)
   {
     controller_name_ = "/controllers/wheelfoot_controller";
@@ -120,17 +144,11 @@ bool PointfootHW::init(ros::NodeHandle& root_nh, ros::NodeHandle& robot_hw_nh) {
   usercmd_last_.buttons.resize(18, 0);
   std::cerr << "robot_type_ = " << robot_type_ << std::endl; 
 
-  int is_sim = 0;
-  const char* is_sim_env = ::getenv("IS_SIM");
-  if (is_sim_env && strlen(is_sim_env) > 0) {
-    try {
-      is_sim = std::atoi(is_sim_env);
-      ROS_INFO("isSim: %d", is_sim);
-    } catch(const std::exception& e) {
-      ROS_INFO("IS_SIM: %s", e.what());
-    }
-  }
-  if (is_sim == 1) {
+  // std::string is_sim_str;
+  bool is_sim = false;
+  bool rn = root_nh.param<bool>("/is_sim", is_sim, 0);
+  is_sim_ = int(is_sim);
+  if (is_sim_ == 1) {
     calibration_state_ = 0;
   } else {
     calibration_state_ = -1;
@@ -144,9 +162,9 @@ bool PointfootHW::init(ros::NodeHandle& root_nh, ros::NodeHandle& robot_hw_nh) {
   }
 
   // Arm interface
-  if(is_sim!=1)
+  if(is_sim_ == 0)
   {
-    is_sim_ = 0;
+    // is_sim_ = 0;
     ROS_INFO("Real World Deploy , Airbot Arm SDK Init!");
 
     std::string urdf_path = URDF_INSTALL_PATH + "airbot_play_with_gripper.urdf";
@@ -167,7 +185,7 @@ bool PointfootHW::init(ros::NodeHandle& root_nh, ros::NodeHandle& robot_hw_nh) {
     gripper_cmd_sub_ = robot_hw_nh.subscribe<std_msgs::Bool>("/gripper_cmd", 10, &PointfootHW::gripperCmdCallback, this);
   }
   else{
-    is_sim_ = 1;
+    // is_sim_ = 1;
     ROS_INFO("Simulation Deploy , Airbot Arm ROS Topic Init!");
     airbot_msgs::ArmState init_state;
     // init_state->na = 6;
@@ -250,14 +268,54 @@ bool PointfootHW::init(ros::NodeHandle& root_nh, ros::NodeHandle& robot_hw_nh) {
       if (msg->buttons[joystick_btn_map_["L1"]] == 1 && msg->buttons[joystick_btn_map_["Y"]] == 1) {
         startBipedController();
         arm_init_flag_ = true;
+        baseControllerStart_ = ros::Time::now();
       }
     }
 
     // Logic for stopping biped controller
     if (joystick_btn_map_.count("L1") > 0 && joystick_btn_map_.count("X") > 0) {
       if (msg->buttons[joystick_btn_map_["L1"]] == 1 && msg->buttons[joystick_btn_map_["X"]] == 1) {
-        ROS_FATAL("L1 + X stopping controller!");
+        ROS_WARN("L1 + X stopping controller!"); // ROS_FATAL
+        if (!is_sim_) {
+          maintain_grasp_ = true; // close the gripper before exit
+        }
         stopBipedController();
+        // abort();
+      }
+    }
+
+    // preparing stop
+    if (prepare_stop_) {
+      prepare_stop_count_++;
+      if (prepare_stop_count_ > 320){
+        ROS_FATAL("stopping controller finished!"); // ROS_FATAL
+        // Creating a message to switch controllers
+        controller_manager_msgs::SwitchController sw;
+        sw.request.stop_controllers.push_back(controller_name_);
+        sw.request.start_asap = false;
+        sw.request.strictness = controller_manager_msgs::SwitchControllerRequest::BEST_EFFORT;
+        sw.request.timeout = ros::Duration(3.0).toSec();
+
+        // Calling the controller_manager service to switch controllers
+        if (switch_controllers_client_.call(sw.request, sw.response)) {
+          if (sw.response.ok) {
+            ROS_INFO("Stop controller %s successfully.", sw.request.stop_controllers[0].c_str());
+          } else {
+            ROS_WARN("Stop controller %s failed.", sw.request.stop_controllers[0].c_str());
+          }
+        } else {
+          ROS_WARN("Failed to stop controller %s.", sw.request.stop_controllers[0].c_str());
+        }
+        for (int i = 0; i < robot_->getMotorNumber(); ++i) {
+          robotCmd_.q[i] = jointData_[i].posDes_ = 0.0;
+          robotCmd_.dq[i] = jointData_[i].velDes_ = 0.0;
+          robotCmd_.Kp[i] = jointData_[i].kp_ = 0.0;
+          robotCmd_.tau[i] = jointData_[i].tau_ff_ = 0.0;
+          robotCmd_.Kd[i] = jointData_[i].kd_ = 1.0;
+        }
+        robot_->publishRobotCmd(robotCmd_);
+
+        std::this_thread::sleep_for(std::chrono::nanoseconds(static_cast<int64_t>(1.0 * 1e9)));
         abort();
       }
     }
@@ -299,7 +357,37 @@ bool PointfootHW::init(ros::NodeHandle& root_nh, ros::NodeHandle& robot_hw_nh) {
       ros::Time now = ros::Time::now();
       if ((now.toSec() - lastpub.toSec()) >= (1.0 / 30)) {
         geometry_msgs::Twist twist;
-        
+        // compute imu orientation offset
+        if (msg->buttons[joystick_btn_map_["R2"]] == 1 &&
+          usercmd_last_.buttons[joystick_btn_map_["L"]] == 0 && msg->buttons[joystick_btn_map_["L"]] == 1)
+        {
+          imu_offset_roll_ = imu_offset_roll_ - msg->buttons[joystick_btn_map_["L"]] * 0.003;
+          imu_offset_changed_ = true;
+        }
+        if (msg->buttons[joystick_btn_map_["R2"]] == 1 &&
+          usercmd_last_.buttons[joystick_btn_map_["R"]] == 0 && msg->buttons[joystick_btn_map_["R"]] == 1)
+        {
+          imu_offset_roll_ = imu_offset_roll_ + msg->buttons[joystick_btn_map_["R"]] * 0.003;
+          imu_offset_changed_ = true;
+        }
+        if (msg->buttons[joystick_btn_map_["R2"]] == 1 &&
+          usercmd_last_.buttons[joystick_btn_map_["U"]] == 0 && msg->buttons[joystick_btn_map_["U"]] == 1)
+        {
+          imu_offset_pitch_ = imu_offset_pitch_ + msg->buttons[joystick_btn_map_["U"]] * 0.003;
+          imu_offset_changed_ = true;
+        }
+        if (msg->buttons[joystick_btn_map_["R2"]] == 1 &&
+          usercmd_last_.buttons[joystick_btn_map_["D"]] == 0 && msg->buttons[joystick_btn_map_["D"]] == 1)
+        {
+          imu_offset_pitch_ = imu_offset_pitch_ - msg->buttons[joystick_btn_map_["D"]] * 0.003;
+          imu_offset_changed_ = true;
+        }
+
+        imu_offset_roll_ = std::min(std::max(imu_offset_roll_, -0.105), 0.105);
+        imu_offset_pitch_ = std::min(std::max(imu_offset_pitch_, -0.105), 0.105);
+
+        twist.angular.x = imu_offset_roll_;
+        twist.angular.y = imu_offset_pitch_;
         // if ((now.toSec() - cmdVelFromSDKLast_.toSec()) >= 1.0) {
         twist.linear.x = msg->axes[joystick_axes_map_["left_vertical"]] * 0.5;
         twist.linear.y = msg->axes[joystick_axes_map_["left_horizon"]] * 0.5;
@@ -307,22 +395,54 @@ bool PointfootHW::init(ros::NodeHandle& root_nh, ros::NodeHandle& robot_hw_nh) {
         twist.angular.z = msg->axes[joystick_axes_map_["right_horizon"]] * 0.5;
         cmd_vel_pub_.publish(twist);
 
+        // write imu offset change to yaml
+        if (imu_offset_changed_)
+        {
+          std::string limxArmPath = "/opt/limx/imptdata/ctrl_TRON1_arm.yaml";
+          YAML::Node exist_config = YAML::LoadFile(limxArmPath);
+          std::map<std::string, double> offset_map;
+          // iterate existing yaml data
+          for (YAML::const_iterator it = exist_config.begin(); it != exist_config.end(); ++it) {
+            std::string key = it->first.as<std::string>();
+            double offset = (it->second).as<double>();
+            offset_map[key] = offset;
+          }
+          // add new key to map(override if exists)
+          offset_map[robot_type_ + "_imu_offset_pitch"] = imu_offset_pitch_;
+          offset_map[robot_type_ + "_imu_offset_roll"] = imu_offset_roll_;
+          YAML::Emitter out;
+          out << YAML::BeginMap;
+          for (const auto& rpy_offset : offset_map) {
+            out << YAML::Key << rpy_offset.first << YAML::Value << rpy_offset.second;
+          }
+          out << YAML::EndMap;
+          std::ofstream fout(limxArmPath);
+          if (fout.good()) {
+            fout << out.c_str();
+            ROS_INFO_STREAM("IMU offset saved to: " << limxArmPath << " pitch: "
+               << imu_offset_pitch_ << " roll: " << imu_offset_roll_);
+          } else {
+            ROS_ERROR_STREAM("Failed to write to file: " << limxArmPath);
+          }
+          imu_offset_changed_ = false;
+        }
+
         std_msgs::Float32MultiArray ee_rc_cmd_delta_msg;
         ee_rc_cmd_delta_msg.data.resize(6+1);
-        // x y z 
-
-        ee_rc_cmd_delta_msg.data[1] = 0.003*msg->buttons[joystick_btn_map_["L"]]-0.003*msg->buttons[joystick_btn_map_["R"]];
-        
-        if(msg->buttons[joystick_btn_map_["L2"]] == 1)
+        // x y z R2 pressed is the imu offset, skip arm command
+        if(msg->buttons[joystick_btn_map_["R2"]] == 0)
         {
-          ee_rc_cmd_delta_msg.data[0] = 0;
-          ee_rc_cmd_delta_msg.data[2] = 0.003*msg->buttons[joystick_btn_map_["U"]]-0.003*msg->buttons[joystick_btn_map_["D"]];
+          ee_rc_cmd_delta_msg.data[1] = 0.003*msg->buttons[joystick_btn_map_["L"]]-0.003*msg->buttons[joystick_btn_map_["R"]];
+          if(msg->buttons[joystick_btn_map_["L2"]] == 1)
+          {
+            ee_rc_cmd_delta_msg.data[0] = 0;
+            ee_rc_cmd_delta_msg.data[2] = 0.003*msg->buttons[joystick_btn_map_["U"]]-0.003*msg->buttons[joystick_btn_map_["D"]];
+          }
+          else{
+            ee_rc_cmd_delta_msg.data[0] = 0.003*msg->buttons[joystick_btn_map_["U"]]-0.003*msg->buttons[joystick_btn_map_["D"]];
+            ee_rc_cmd_delta_msg.data[2] = 0;
+          }
         }
-        else{
-          ee_rc_cmd_delta_msg.data[0] = 0.003*msg->buttons[joystick_btn_map_["U"]]-0.003*msg->buttons[joystick_btn_map_["D"]];
-          ee_rc_cmd_delta_msg.data[2] = 0;
-        }
-
         // r p y 
         // pitch
         ee_rc_cmd_delta_msg.data[4] = 0.01*msg->buttons[joystick_btn_map_["Y"]]-0.01*msg->buttons[joystick_btn_map_["A"]];
@@ -449,7 +569,8 @@ void PointfootHW::read(const ros::Time& /*time*/, const ros::Duration& /*period*
 void PointfootHW::write(const ros::Time& /*time*/, const ros::Duration& /*period*/) {
   static long loop_cnt = 0;
   bool arm_pub_flag = false;
-  if( loop_cnt%5 == 0 )
+  double start_controller_diff = (ros::Time::now() - baseControllerStart_).toSec();
+  if( loop_cnt%5 == 0 && start_controller_diff > 4.0 && start_controller_diff < 1e9)
   {
     arm_pub_flag = true;
   }
@@ -495,22 +616,46 @@ void PointfootHW::write(const ros::Time& /*time*/, const ros::Duration& /*period
     {
       for (int i = 0; i < 6; ++i)
       {
-        airbot_arm_cmd_.target_joint_q[i] = static_cast<float>(jointData_[i + joint_num_].posDes_);
+        float pos_des = static_cast<float>(jointData_[i + joint_num_].posDes_) * 
+          std::min((highDampingCnt_ + 50) / 180.0, 1.0);
+        airbot_arm_cmd_.target_joint_q[i] = static_cast<float>(pos_des);
         airbot_arm_cmd_.target_joint_v[i] = static_cast<float>(jointData_[i + joint_num_].velDes_);
         airbot_arm_cmd_.target_joint_kp[i] = static_cast<float>(jointData_[i + joint_num_].kp_);
         airbot_arm_cmd_.target_joint_kd[i] = static_cast<float>(jointData_[i + joint_num_].kd_);
       }
       if(arm_pub_flag){
+        float kd_factor = highDampingCnt_ < 200 ? 3.0 : 1.0;
+        for (int i = 0; i < 6; ++i)
+        {
+          airbot_arm_cmd_.target_joint_kd[i] *= kd_factor;
+        }
+        // update grasp flag
+        bool print_info = false;
+        if(gripper_cmd_ == true && last_gripper_cmd_ == false && maintain_grasp_ == false)
+        {
+          ROS_INFO("received grasp open command");
+          maintain_grasp_ = true;
+          print_info = true;
+        }
+        // when gripper cmd changes, modify maintain_grasp_
+        else if (gripper_cmd_ == true && last_gripper_cmd_ == false && maintain_grasp_ == true)
+        {
+          ROS_INFO("received grasp close command");
+          maintain_grasp_ = false;
+          print_info = true;
+        }
+        last_gripper_cmd_ = gripper_cmd_;
         bool send_success=
         airbot_arm_hw_->set_target_joint_mit(airbot_arm_cmd_.target_joint_q,
                                             airbot_arm_cmd_.target_joint_v,
                                             airbot_arm_cmd_.target_joint_kp,
                                             airbot_arm_cmd_.target_joint_kd);
-        grasp(!gripper_cmd_);
+        grasp(maintain_grasp_, print_info);
         if(!send_success)
         {
           ROS_WARN_STREAM("Failed to send arm command to airbot arm!!");
         }
+        highDampingCnt_++;
       }
     }
     else{}
@@ -594,15 +739,19 @@ bool PointfootHW::loadUrdf(ros::NodeHandle& nh) {
   return !urdfString.empty() && urdfModel_->initString(urdfString);
 }
 
-void PointfootHW::grasp(bool to_grasp)
+void PointfootHW::grasp(bool to_grasp, bool print_info)
 {
   if (to_grasp) {
     if (!is_sim_) {
-      airbot_arm_hw_->set_target_end(0.0);
+      bool opened = airbot_arm_hw_->set_target_end(0.0);
+      if (print_info)
+        ROS_INFO_STREAM("set gripper open status: " << opened);
     }
   } else {
     if (!is_sim_) {
-      airbot_arm_hw_->set_target_end(1.0);
+      bool closed = airbot_arm_hw_->set_target_end(1.0);
+      if (print_info)
+        ROS_INFO_STREAM("set gripper close status: " << closed);
     }
   }
 }

@@ -57,6 +57,7 @@ catkin_package(
 )
 
 find_package(urdfdom REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 # Include directories for header files
 include_directories(
@@ -64,6 +65,7 @@ include_directories(
   ${CATKIN_DEVEL_PREFIX}/include
   ${EIGEN3_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
+  ${YAML_CPP_INCLUDE_DIRS}
 )
 
 link_directories(${CATKIN_DEVEL_PREFIX}/lib)
@@ -81,6 +83,7 @@ target_link_libraries(pointfoot_node
         pointfoot_sdk_lowlevel
         pthread
         ${AIRBOT_SDK_LIB_FILES}
+        ${YAML_CPP_LIBRARIES}
 )
 
 # Mark executables and/or libraries for installation

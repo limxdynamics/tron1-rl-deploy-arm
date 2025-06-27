@@ -35,6 +35,7 @@ public:
   enum class Mode : uint8_t {
     SOLE_STAND, 
     SOLE_WALK, 
+    SOLE_STOP,
   };
 
   // Initialize the controller
@@ -63,6 +64,8 @@ protected:
   void computeEncoder() override;
 
   void handleSoleStandMode() override;
+
+  void handleSoleStopMode();
 
   void handleRLSoleWalkMode() override;
 
@@ -102,6 +105,9 @@ private:
 
   ros::Publisher gripper_cmd_pub_;
   std_msgs::Bool gripper_cmd_msg_;
+
+  ros::Publisher obs_debug_pub_;
+  std_msgs::Float32MultiArray obs_debug_msg_;
 
   geometry_msgs::Pose ee_pos_cmd_debug_msg_;
 
@@ -172,16 +178,22 @@ private:
   std::vector<double> commandX_;
   std::vector<double> commandY_;
   std::vector<double> commandYaw_;
-  const int windowLen_ = 50;
+  const int windowLen_ = 100;
 
   // stand pos
   vector_t standCenterPos_;
   vector_t standJointPos_;
+  vector_t stopSitPos_;
   scalar_t standCenterPercent_;
   scalar_t standCenterDuration_;
+  scalar_t stopCenterPercent_;
+  scalar_t stopCenterDuration_;
   scalar_t initStandPercent_;
   scalar_t initStandDuration_;
+  vector3_t lastEePos_, lastEeRpy_;
 
+  bool armHoldStill_{false};
+  bool stopJointAnglesUpdated_{false};
   bool needDamping_{false};
   bool isNoCommand_{false};
 };

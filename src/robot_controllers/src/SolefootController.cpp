@@ -15,16 +15,18 @@ namespace robot_controller {
 bool SolefootController::init(hardware_interface::RobotHW *robot_hw, ros::NodeHandle &nh) {
   // initialize initial positions
   standCenterPos_.setZero(8 + 6);
+  stopSitPos_.setZero(8 + 6);
   standJointPos_.setZero(8);
 
-  eeCommands_.resize(9); // x y z xx xy xz yx yy yz
-  eeCommands_ << 0.346+0.1, 0, 0.241, 0, 0, 1, -1, 0, 0;
+  // eeCommands_.resize(9); // x y z xx xy xz yx yy yz
+  // eeCommands_ << 0.346+0.1, 0, 0.241, 0, 0, 1, -1, 0, 0;
 
   ee_init_pos_ << 0.346+0.1, 0, 0.241;
   ee_init_rpy_ << -M_PI/2, 0, -M_PI/2;
 
   // register publishers and subscribers
   gripper_cmd_pub_ = nh_.advertise<std_msgs::Bool>("/gripper_cmd", false, 10);
+  obs_debug_pub_ = nh_.advertise<std_msgs::Float32MultiArray>("/obs_debug_info", false, 10);
 
   ee_pos_cmd_rc_delta_ = nh_.subscribe<std_msgs::Float32MultiArray>("/EEPose_cmd_rc", 10, &SolefootController::EEPoseCmdRCCallback, this);
   ee_pos_cmd_rc_delta_msg_.data.resize(6+1);
@@ -42,6 +44,9 @@ void SolefootController::starting(const ros::Time &time) {
   standCenterPos_ << 0.0,  0.6,  1.2, -0.7,
                              0.0, -0.6, -1.2, -0.7,
                              0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+  stopSitPos_ << 0.0,  1.0,  1.35, -1.1,
+                             0.0, -1.0, -1.35, -1.1,
+                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
   standJointPos_ << 0.0, 0.0, 0.0, -0.11,
                       0.0, 0.0, 0.0, -0.11;
 
@@ -49,6 +54,8 @@ void SolefootController::starting(const ros::Time &time) {
   standDuration_ = durationSecs * 1800.0;
   standCenterDuration_ = durationSecs * 1000.0;
   standCenterPercent_ = 0.0;
+  stopCenterPercent_ = 0.0;
+  stopCenterDuration_ = durationSecs * 750.0;
 
   initStandPercent_ = 0.0;
   initStandDuration_ = durationSecs * 800.0;
@@ -80,6 +87,9 @@ void SolefootController::update(const ros::Time &time, const ros::Duration &peri
   case Mode::SOLE_WALK:
       handleRLSoleWalkMode();
       break;
+  case Mode::SOLE_STOP:
+      handleSoleStopMode();
+      break;
   }
   loopCount_++;
   loopCountKeep_++;
@@ -109,6 +119,35 @@ void SolefootController::handleSoleStandMode() {
   else
   {
     mode_ = Mode::SOLE_WALK;
+  }
+}
+
+void SolefootController::handleSoleStopMode() {
+  if (!stopJointAnglesUpdated_) {
+    for (size_t i = 0; i < hybridJointHandles_.size(); i++) {
+      ROS_INFO_STREAM("updating stop hybridJointHandle: " << hybridJointHandles_[i].getPosition());
+      defaultJointAngles_[i] = hybridJointHandles_[i].getPosition();
+    }
+    stopJointAnglesUpdated_ = true;
+  }
+  if (stopCenterPercent_ < 1)
+  {
+    for (int j = 0; j < hybridJointHandles_.size(); j++)
+    {
+      if(j==8||j==9||j==10){ // arm j123
+        scalar_t pos_des = defaultJointAngles_[j] * (1 - stopCenterPercent_) + stopSitPos_[j] * stopCenterPercent_;
+        hybridJointHandles_[j].setCommand(pos_des, 0, 20, 1, 0, 0);
+      }
+      else if(j==11||j==12||j==13){ // arm j456
+        scalar_t pos_des = defaultJointAngles_[j] * (1 - stopCenterPercent_) + stopSitPos_[j] * stopCenterPercent_;
+        hybridJointHandles_[j].setCommand(pos_des, 0, 10, 1, 0, 0);
+      }
+      else{
+        scalar_t pos_des = defaultJointAngles_[j] * (1 - stopCenterPercent_) + stopSitPos_[j] * stopCenterPercent_;
+        hybridJointHandles_[j].setCommand(pos_des, 0, 100, 6, 0, 0);
+      }
+    }
+    stopCenterPercent_ += 1 / stopCenterDuration_;
   }
 }
 
@@ -155,6 +194,8 @@ void SolefootController::handleRLSoleWalkMode()
   {
     // arm j1 j2 j3
     if(i==8||i==9||i==10){ 
+        // if armHoldStill_ is true, half kp and double kd to make arm actions smooth
+        float factor_kpkd = armHoldStill_ ? 2.0 : 1.0;
         scalar_t actionMin = jointPos(i) - initJointAngles_(i, 0) +
         (soleRobotCfg_.controlCfg.arm_j123_damping * jointVel(i) - soleRobotCfg_.controlCfg.arm_j123_torque_limit) /
             soleRobotCfg_.controlCfg.arm_j123_stiffness;
@@ -166,8 +207,8 @@ void SolefootController::handleRLSoleWalkMode()
                             std::min(actionMax / soleRobotCfg_.controlCfg.action_scale_pos, (scalar_t)actions_[i]));
         scalar_t pos_des = actions_[i] * soleRobotCfg_.controlCfg.action_scale_pos ;
         lastActions_(i, 0) = actions_[i];
-        hybridJointHandles_[i].setCommand(pos_des, 0, soleRobotCfg_.controlCfg.arm_j123_stiffness, 
-                                            soleRobotCfg_.controlCfg.arm_j123_damping, 0, 0);
+        hybridJointHandles_[i].setCommand(pos_des, 0, soleRobotCfg_.controlCfg.arm_j123_stiffness / factor_kpkd, 
+                                            soleRobotCfg_.controlCfg.arm_j123_damping * factor_kpkd, 0, 0);
     }
     // arm j4 j5 j6
     else if(i==11||i==12||i==13){ 
@@ -419,6 +460,7 @@ bool SolefootController::loadRLCfg() {
     proprioHistoryVector_.resize(observationSize_ * obsHistoryLength_);
     encoderOut_.resize(encoderOutputSize_);
     lastActions_.resize(actionsSize_);
+    obs_debug_msg_.data.resize(observationSize_);
 
     // Initialize vectors.
     lastActions_.setZero();
@@ -448,7 +490,8 @@ void SolefootController::computeObservation() {
   vector3_t gravityVector(0, 0, -1);
   vector3_t projectedGravity(inverseRot * gravityVector);
 
-  vector3_t _zyx(0.0, 0.0, 0.0);
+  // vector3_t _zyx(0.0, 0.0, 0.0);
+  vector3_t _zyx(0.0, imuOrientationOffset_[1], imuOrientationOffset_[0]);
   matrix_t rot = getRotationMatrixFromZyxEulerAngles(_zyx);
   projectedGravity = rot * projectedGravity;
 
@@ -529,7 +572,15 @@ void SolefootController::computeObservation() {
   ee_rpy << ee_init_rpy_[0] + rc_ee_cmd.ee_rpy[1], 
             ee_init_rpy_[1] + rc_ee_cmd.ee_rpy[2], 
             ee_init_rpy_[2] + rc_ee_cmd.ee_rpy[0];
-
+  // if ee_pos change is lower than 0.03 and ee_rpy change is lower than 0.01, regard as still
+  if ((ee_pos - lastEePos_).norm() < 0.03 && (ee_rpy - lastEeRpy_).norm() < 0.01) {
+    armHoldStill_ = true;
+  }
+  else {
+    armHoldStill_ = false;
+  }
+  lastEePos_ = ee_pos;
+  lastEeRpy_ = ee_rpy;
   ee_quat = getQuaternionFromRpy(ee_rpy);
   if(ee_quat.w() < 0){
     ee_quat_vec << -ee_quat.w(), -ee_quat.x(), -ee_quat.y(), -ee_quat.z();
@@ -608,7 +659,10 @@ void SolefootController::computeObservation() {
   for (size_t i = 0; i < obs.size(); i++)
   {
     observations_[i] = static_cast<tensor_element_t>(obs(i));
+    obs_debug_msg_.data[i] = observations_[i];
   }
+  // publish obs debug info
+  obs_debug_pub_.publish(obs_debug_msg_);
   for (size_t i = 0; i < proprioHistoryBuffer_.size(); i++)
   {
     proprioHistoryVector_[i] = static_cast<tensor_element_t>(proprioHistoryBuffer_(i));
@@ -682,7 +736,7 @@ void SolefootController::cmdVelCallback(const geometry_msgs::TwistConstPtr &msg)
   commands_(2) = std::min(0.3, std::max(msg->angular.z, -0.3));
 
   double command_z = std::min(1.0, std::max(msg->linear.z, -1.0));
-  baseHeightCmd_ = 0.8 + command_z / 5;
+  baseHeightCmd_ = 0.7 + command_z / 5; // change initial height cmd from 0.8 to 0.7
 
   imuOrientationOffset_[0] = msg->angular.x;
   imuOrientationOffset_[1] = msg->angular.y;
@@ -716,7 +770,7 @@ void SolefootController::handleExtraCommands(){
 }
 
 vector_t SolefootController::handleGaitCommand(){
-  vector_t gait(4);
+  vector_t gait(4);// 4
   // frequency, phase offset, contact duration, swing height
   gait << 1.3, 0.5, 0.5, 0.12;
   return gait;
@@ -768,12 +822,15 @@ double SolefootController::sliding_window(std::vector<double>& data, int window_
 
 void SolefootController::EEPoseCmdRCCallback(const std_msgs::Float32MultiArrayConstPtr &msg)
 {
+  if (msg->data.size() == 8 && msg->data[7] == -1) {
+    mode_ = Mode::SOLE_STOP;
+  }
   ee_pos_cmd_rc_delta_msg_ = *msg;
   rc_ee_cmd.ee_position[0] += msg->data[0];
   rc_ee_cmd.ee_position[1] += msg->data[1];
   rc_ee_cmd.ee_position[2] += msg->data[2];
 
-  rc_ee_cmd.ee_position[0] = std::min(0.8-ee_init_pos_[0], std::max(0.0-ee_init_pos_[0], rc_ee_cmd.ee_position[0]));
+  rc_ee_cmd.ee_position[0] = std::min(0.6-ee_init_pos_[0], std::max(0.0-ee_init_pos_[0], rc_ee_cmd.ee_position[0]));
   rc_ee_cmd.ee_position[1] = std::min(0.5-ee_init_pos_[1], std::max(-0.5-ee_init_pos_[1], rc_ee_cmd.ee_position[1]));
   rc_ee_cmd.ee_position[2] = std::min(0.5-ee_init_pos_[2], std::max(-0.3-ee_init_pos_[2], rc_ee_cmd.ee_position[2]));
 

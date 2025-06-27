@@ -3,6 +3,7 @@
   <param name="robot_type" value="$(env ROBOT_TYPE)" />
 
   <param name="use_gazebo" value="true"/>
+  <param name="is_sim" value="true"/>
 
   <include file="$(find pointfoot_gazebo)/launch/empty_world.launch"/>
   <rosparam file="$(find robot_controllers)/config/controllers.yaml" command="load"/>

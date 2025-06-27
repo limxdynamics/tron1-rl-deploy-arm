@@ -495,8 +495,8 @@ void WheelfootController::computeObservation() {
                         imuSensorHandles_.getAngularVelocity()[2]);
 
   // imu offset, to be added to baseAngVel
-  imu_orientation_offset[1] = 0.015; //0.01;
-  imu_orientation_offset[0] = 0.0;
+  // imu_orientation_offset[1] = 0.015; //0.01;
+  // imu_orientation_offset[0] = 0.0;
   vector3_t _zyx(0.0, imu_orientation_offset[1], imu_orientation_offset[0]);
 
   matrix_t rot = getRotationMatrixFromZyxEulerAngles(_zyx);

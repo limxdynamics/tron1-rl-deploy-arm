@@ -79,8 +79,8 @@ void RobotHWLoop::Update() {
   const double cycle_time_error = (elapsedTime_ - ros::Duration(desiredDuration.count())).toSec();
   if (cycle_time_error > cycleTimeErrorThreshold_)
   {
-    ROS_WARN("Cycle time exceeded error threshold by: %fs, cycle time: %fs, threshold: %fs",
-              cycle_time_error - cycleTimeErrorThreshold_, elapsedTime_.toSec(), cycleTimeErrorThreshold_);
+    // ROS_WARN("Cycle time exceeded error threshold by: %fs, cycle time: %fs, threshold: %fs",
+              // cycle_time_error - cycleTimeErrorThreshold_, elapsedTime_.toSec(), cycleTimeErrorThreshold_);
   }
 
   // Input
