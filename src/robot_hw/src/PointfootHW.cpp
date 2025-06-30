@@ -139,6 +139,13 @@ bool PointfootHW::init(ros::NodeHandle& root_nh, ros::NodeHandle& robot_hw_nh) {
     joint_num_ = 8;
     robot_subtype = 3;
   }
+  // Advertising cmd_vel topic for publishing twist commands
+  cmd_vel_pub_ = robot_hw_nh.advertise<geometry_msgs::Twist>("/cmd_vel", 10, false);
+
+  // Initializing ROS service clients for controller
+  switch_controllers_client_ = robot_hw_nh.serviceClient<controller_manager_msgs::SwitchController>("/pointfoot_hw/controller_manager/switch_controller");
+  list_controllers_client_ = robot_hw_nh.serviceClient<controller_manager_msgs::ListControllers>("/pointfoot_hw/controller_manager/list_controllers");
+  ee_rc_cmd_delta_pub_ = robot_hw_nh.advertise<std_msgs::Float32MultiArray>("/EEPose_cmd_rc", 10, false);
 
   usercmd_last_.axes.resize(4, 0.0);
   usercmd_last_.buttons.resize(18, 0);
@@ -509,14 +516,7 @@ bool PointfootHW::init(ros::NodeHandle& root_nh, ros::NodeHandle& robot_hw_nh) {
       abort();
     }
   });
-  // Advertising cmd_vel topic for publishing twist commands
-  cmd_vel_pub_ = robot_hw_nh.advertise<geometry_msgs::Twist>("/cmd_vel", 10);
-
-  // Initializing ROS service clients for controller
-  switch_controllers_client_ = robot_hw_nh.serviceClient<controller_manager_msgs::SwitchController>("/pointfoot_hw/controller_manager/switch_controller");
-  list_controllers_client_ = robot_hw_nh.serviceClient<controller_manager_msgs::ListControllers>("/pointfoot_hw/controller_manager/list_controllers");
-  ee_rc_cmd_delta_pub_ = robot_hw_nh.advertise<std_msgs::Float32MultiArray>("/EEPose_cmd_rc", false, 10);
-
+  
   return true;
 }
 
