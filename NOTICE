@@ -1,0 +1,18 @@
+LimX Dynamics
+Copyright (c) 2026 LimX Dynamics. All Rights Reserved.
+
+This software bundle includes third-party software, which is distributed
+under its respective terms:
+
+AirBot SDK (src/airbot-sdk-2.9)
+  * Third-party robotic arm SDK, bundled for TRON1 reinforcement-learning
+    deployment. Distributed under the terms of its own license; refer to the
+    AirBot SDK sources under src/airbot-sdk-2.9/.
+
+nlohmann/json (src/airbot-sdk-2.9/include/nlohmann/)
+  * Copyright (c) 2013-2023 Niels Lohmann
+  * Licensed under the MIT License.
+
+cpp-httplib (src/airbot-sdk-2.9/lib/cmake/httplib/)
+  * Copyright (c) 2017 yhirose
+  * Licensed under the MIT License.
