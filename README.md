@@ -1,4 +1,8 @@
 <p align="center">
+  <img src="doc/tron1-rl-deploy-arm-banner.png" alt="tron1-rl-deploy-arm: a TRON1 sole-foot robot with a 6-DoF arm walking, lowering its body, moving the arm and turning the gripper under one RL policy" width="100%">
+</p>
+
+<p align="center">
   <b>English</b> | <a href="README_cn.md">中文</a>
 </p>
 
@@ -15,13 +19,39 @@
 
 > **Part of the TRON1 open-source ecosystem.** Where to start and the other TRON1 repositories: [TRON1 quick start](https://github.com/limxdynamics/limxdynamics/blob/main/doc/quickstart.md#tron1).
 
-## 1. Deployment Environment Setup
+**Loco-manipulation on TRON1: one RL policy walks the robot and moves a 6-DoF arm at the same time.** Runs in Gazebo with ROS Noetic, driven from a keyboard through the virtual joystick.
 
-**Install ROS Noetic:**  
+## Highlights
+
+- **Whole-body control from one network.** The policy outputs all 14 joint targets, 8 for the legs and 6 for the arm, so the body stays balanced while the arm reaches.
+- **Self-contained workspace.** Robot models, the Gazebo plugin, the LimX SDK, ONNX Runtime and the arm SDK are all inside `src/`; clone and run `catkin_make install`.
+- **Two arm-equipped robots.** Trained policies for the sole-foot (`SF_TRON1A`) and wheel-foot (`WF_TRON1A`) TRON1 with the arm mounted.
+- **Drive it from the keyboard.** [`robot-joystick`](https://github.com/limxdynamics/robot-joystick) maps arrow keys to walking, numpad to body height and `WASD` / `IJKL` to the end-effector.
+
+## Robot models
+
+| | Model | Description | Actuated DoF | `ROBOT_TYPE` |
+| :-: | --- | --- | :-: | --- |
+| <img src="doc/model-sf-arm.png" width="320" alt="TRON1 sole-foot with arm"> | **Sole foot + arm** | Biped with ankles and flat feet, 6-DoF arm (J1–J6) on the body | 8 + 6 | `SF_TRON1A` |
+| <img src="doc/model-wf-arm.png" width="320" alt="TRON1 wheel-foot with arm"> | **Wheel foot + arm** | Wheel-legged base, 6-DoF arm (J1–J6) on the body | 8 + 6 | `WF_TRON1A` |
+
+Images are rendered from this repository's `src/robot-description/pointfoot/<ROBOT_TYPE>/urdf/robot_with_arm.urdf` with the same camera and lighting.
+
+## How it works
+
+<p align="center">
+  <img src="doc/tron1-rl-deploy-arm-control-loop.png" alt="Sensors (IMU and 14 joints) form an 81-value observation; the last 5 observations go through encoder.onnx (405 to 64); policy.onnx maps 81 plus 64 inputs to 14 joint targets; joint PD for legs and arm; hardware loop 500 Hz, policy 50 Hz; commands are body velocity and height plus end-effector pose from /EEPose_cmd_rc" width="100%">
+</p>
+
+## Set up and run
+
+### 1. Deployment Environment Setup
+
+**Install ROS Noetic:**
 We recommend building an algorithm development environment based on ROS Noetic on Ubuntu 20.04. ROS provides a suite of tools and libraries—such as core libraries, communication frameworks, and simulation tools (e.g., Gazebo)—which greatly facilitate the development, testing, and deployment of robotic algorithms. These resources offer users a rich and complete development environment.
 
-To install ROS Noetic, please refer to the official documentation:  
-👉 [ROS Noetic Installation on Ubuntu](https://wiki.ros.org/noetic/Installation/Ubuntu)  
+To install ROS Noetic, please refer to the official documentation:
+[ROS Noetic Installation on Ubuntu](https://wiki.ros.org/noetic/Installation/Ubuntu)
 Make sure to choose the **`ros-noetic-desktop-full`** version.
 
 After installing ROS Noetic, run the following shell commands in a Bash terminal to install the required dependencies:
@@ -47,30 +77,26 @@ sudo apt install ros-noetic-urdf \
              python3-pip libboost-all-dev libtbb-dev liburdfdom-dev liborocos-kdl-dev -y
 ```
 
----
-
-## 2. Compilation and Execution
+### 2. Compilation and Execution
 
 This project is implemented based on the [`ros_control`](https://wiki.ros.org/ros_control) framework. Follow the steps below to compile and run it:
 
-### Step 1: Open a Bash terminal.
+**Step 1: Open a Bash terminal.**
 
-### Step 2: Clone the source code repository:
+**Step 2: Clone the source code repository:**
 
 ```bash
 git clone https://github.com/limxdynamics/tron1-rl-deploy-arm.git
 ```
 
-### Step 3: Compile the project:
+**Step 3: Compile the project:**
 
 ```bash
 cd tron1-rl-deploy-arm
 catkin_make install
 ```
 
----
-
-## 3. Set Robot Type
+### 3. Set Robot Type
 
 Use the following command to list available robot models:
 
@@ -91,9 +117,7 @@ Choose the appropriate model according to your actual robot. For example, to use
 echo 'export ROBOT_TYPE=SF_TRON1A' >> ~/.bashrc && source ~/.bashrc
 ```
 
----
-
-## 4. Launch Virtual Joystick
+### 4. Launch Virtual Joystick
 
 Open a new terminal window and clone the virtual joystick repository:
 
@@ -101,9 +125,7 @@ Open a new terminal window and clone the virtual joystick repository:
 git clone https://github.com/limxdynamics/robot-joystick.git
 ```
 
----
-
-## 5. Run Simulation
+### 5. Run Simulation
 
 Start the Gazebo simulator with the following commands. Once Gazebo is launched, press `Ctrl + Shift + R` in the simulator window to make the robot start moving:
 
@@ -112,9 +134,7 @@ source install/setup.bash
 roslaunch robot_hw pointfoot_hw_sim.launch
 ```
 
----
-
-## 6. Start the Virtual Joystick
+### 6. Start the Virtual Joystick
 
 Run the virtual joystick:
 
@@ -124,11 +144,17 @@ Run the virtual joystick:
 
 Once started, you can control the robot using the following keys:
 
-- Arrow keys (↑↓←→): Move the robot forward, backward, and turn left/right
-- Numpad `8` / `5`: Raise / Lower the robot
-- Keys `W`, `A`, `S`, `D`: Translate the robot arm in 4 directions
-- Keys `I`, `J`, `K`, `L`: Rotate the robot arm in 4 directions
+| Keys | Action |
+| --- | --- |
+| Arrow keys (↑↓←→) | Move the robot forward, backward, and turn left/right |
+| Numpad `8` / `5` | Raise / Lower the robot |
+| `W` `A` `S` `D` | Translate the robot arm in 4 directions |
+| `I` `J` `K` `L` | Rotate the robot arm in 4 directions |
 
 For example, the effect when using a bipedal robot is shown below.
 
----
+![TRON1 sole-foot with arm walking and moving its arm in Gazebo](doc/simulator.gif)
+
+## License
+
+See [LICENSE](LICENSE). Third-party components bundled under `src/` are listed in [NOTICE](NOTICE).
