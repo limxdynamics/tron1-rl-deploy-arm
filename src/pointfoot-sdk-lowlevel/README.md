@@ -1,12 +1,14 @@
-# LimX SDK 使用说明
+# LimX SDK guide
 
-## 1. 搭建开发环境
+**English** | [中文](README_cn.md)
 
-在算法开发者自己的电脑中，我们推荐在 Ubuntu 20.04 操作系统上建立基于 ROS Noetic 的算法开发环境。ROS 提供了一系列工具和库，如核心库、通信库和仿真工具（如 Gazebo），极大地便利了机器人算法的开发、测试和部署。这些资源为用户提供了一个丰富而完整的算法开发环境。
+## 1. Set up the development environment
 
-当然，即使没有 ROS，您也可以选择在其他环境中开发自己的运动控制算法。我们提供的运动控制开发接口，是一个基于标准 C++11 和 Python 的无依赖 SDK。它支持跨操作系统和平台调用开发，为开发者提供了更灵活的选择。
+On the algorithm developer's own computer, we recommend setting up an algorithm development environment based on ROS Noetic on Ubuntu 20.04. ROS provides a set of tools and libraries, such as core libraries, communication libraries and simulation tools (such as Gazebo), which make it much easier to develop, test and deploy robot algorithms. Together they give you a rich and complete environment for algorithm development.
 
-ROS Noetic 安装请参考文档：https://wiki.ros.org/noetic/Installation/Ubuntu ，选择“ros-noetic-desktop-full”进行安装。ROS Noetic 安装完成后，Bash 终端输入以下 Shell 命令，安装开发环境所依赖的库：
+You can also develop your motion control algorithms in other environments without ROS. Our motion control development interface is a dependency-free SDK based on standard C++11 and Python. It can be called across operating systems and platforms, which gives developers more flexibility.
+
+To install ROS Noetic, follow https://wiki.ros.org/noetic/Installation/Ubuntu and choose "ros-noetic-desktop-full". After ROS Noetic is installed, run the following in a Bash terminal to install the libraries the development environment depends on:
 
 ```
 sudo apt-get update
@@ -27,47 +29,47 @@ sudo apt install ros-noetic-urdf \
                  python3-pip libboost-all-dev libtbb-dev liburdfdom-dev liborocos-kdl-dev -y
 ```
 
-## 2. 创建工作空间
+## 2. Create a workspace
 
-可以按照以下步骤，创建一个算法开发工作空间：
+Follow these steps to create an algorithm development workspace:
 
-- 打开一个 Bash 终端。
+- Open a Bash terminal.
 
-- 创建一个新目录来存放工作空间。例如，可以在用户的主目录下创建一个名为“limx_ws”的目录：
+- Create a new directory for the workspace. For example, create a directory named "limx_ws" in your home directory:
 
   ```
   mkdir -p ~/limx_ws/src
   ```
 
-- 下载运动控制开发接口：
+- Download the motion control development interface:
 
   ```
   cd ~/limx_ws/src
   git clone https://github.com/limxdynamics/pointfoot-sdk-lowlevel.git
   ```
 
-- 下载 Gazebo 仿真器：
+- Download the Gazebo simulator:
 
   ```
   cd ~/limx_ws/src
   git clone https://github.com/limxdynamics/pointfoot-gazebo-ros.git
   ```
 
-- 下载机器人模型描述文件
+- Download the robot description files:
 
   ```
   cd ~/limx_ws/src
   git clone https://github.com/limxdynamics/robot-description.git
   ```
 
-- 下载可视化调试工具
+- Download the visualization and debugging tool:
 
   ```
   cd ~/limx_ws/src
   git clone https://github.com/limxdynamics/robot-visualization.git
   ```
 
-- 编译工程：
+- Build the workspace:
 
   ```
   cd ~/limx_ws
@@ -75,34 +77,34 @@ sudo apt install ros-noetic-urdf \
   ```
 
 
-## 3. Python 运动控制开发接口
+## 3. Python motion control development interface
 
-### 3.1 概述
+### 3.1 Overview
 
-提供与 C++相同功能的[Python 运动算法开发接口](https://github.com/limxdynamics/pointfoot-sdk-lowlevel/tree/master/python3)，使得不熟悉 C++编程语言的开发者能够使用 Python 进行运动控制算法的开发。Python 语言易于学习，具有简洁清晰的语法和丰富的第三方库，使开发者能够更快速地上手并迅速实现算法。通过 Python 接口，开发者可以利用 Python 的动态特性进行快速原型设计和实验验证，加速算法的迭代和优化过程。同时，Python 的跨平台性和强大的生态系统支持，使得运动算法能够更广泛地应用于不同平台和环境。此外，RL（强化学习）模型的快速部署到仿真和真机环境中也得益于 Python 的灵活性，开发者可以使用 Python 轻松地将 RL 模型集成到各种仿真平台和真实硬件中，实现快速迭代和验证算法的性能。
+The [Python motion algorithm development interface](https://github.com/limxdynamics/pointfoot-sdk-lowlevel/tree/master/python3) offers the same functions as the C++ one, so developers who are not familiar with C++ can develop motion control algorithms in Python. Python is easy to learn, with a clean, readable syntax and a rich set of third-party libraries, so developers can get started and implement algorithms quickly. Through the Python interface, developers can use Python's dynamic features for rapid prototyping and experimental validation, which speeds up iterating on and optimizing algorithms. Python's cross-platform support and strong ecosystem also let motion algorithms run on a wider range of platforms and environments. In addition, Python's flexibility makes it quick to deploy RL (reinforcement learning) models to simulation and to the real robot: developers can easily integrate RL models into various simulation platforms and real hardware, and iterate on and validate algorithm performance quickly.
 
-### 3.2 安装运动控制开发库
+### 3.2 Install the motion control development library
 
-请根据操作系统选择相应的命令：
+Choose the command for your operating system:
 
-- Linux x86_64 平台
+- Linux x86_64
 
   ```Bash
   pip install python3/amd64/limxsdk-*-py3-none-any.whl
   ```
 
-- Linux aarch64 平台
+- Linux aarch64
 
   ```Bash
   pip install python3/aarch64/limxsdk-*-py3-none-any.whl
   ```
 
-- Windows  平台
+- Windows
 
   ```Bash
   pip install python3/win/limxsdk-*-py3-none-any.whl
   ```
 
-### 3.3 参考例程
+### 3.3 Example
 
-Python 接口参考例程: https://github.com/limxdynamics/pointfoot-sdk-lowlevel/blob/master/python3/amd64/example.py
+Python interface example: https://github.com/limxdynamics/pointfoot-sdk-lowlevel/blob/master/python3/amd64/example.py

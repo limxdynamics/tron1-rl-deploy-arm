@@ -1,12 +1,12 @@
 # pointfoot-gazebo-ros
 
+**English** | [中文](README_cn.md)
 
+## 1. Set up the development environment
 
-## 1. 搭建开发环境
+We recommend setting up an algorithm development environment based on ROS Noetic on Ubuntu 20.04. ROS provides a set of tools and libraries, such as core libraries, communication libraries and simulation tools (such as Gazebo), which make it much easier to develop, test and deploy robot algorithms. Together they give you a rich and complete environment for algorithm development.
 
-我们推荐在 Ubuntu 20.04 操作系统上建立基于 ROS Noetic 的算法开发环境。ROS 提供了一系列工具和库，如核心库、通信库和仿真工具（如 Gazebo），极大地便利了机器人算法的开发、测试和部署。这些资源为用户提供了一个丰富而完整的算法开发环境。
-
-ROS Noetic 安装请参考文档：https://wiki.ros.org/noetic/Installation/Ubuntu ，选择“ros-noetic-desktop-full”进行安装。ROS Noetic 安装完成后，Bash 终端输入以下 Shell 命令，安装开发环境所依赖的库：
+To install ROS Noetic, follow https://wiki.ros.org/noetic/Installation/Ubuntu and choose "ros-noetic-desktop-full". After ROS Noetic is installed, run the following in a Bash terminal to install the libraries the development environment depends on:
 
 ```
 sudo apt-get update
@@ -27,49 +27,49 @@ sudo apt install ros-noetic-urdf \
                  python3-pip libboost-all-dev libtbb-dev liburdfdom-dev liborocos-kdl-dev -y
 ```
 
-## 2. 创建工作空间
+## 2. Create a workspace
 
-可以按照以下步骤，创建一个算法开发工作空间：
+Follow these steps to create an algorithm development workspace:
 
-- 打开一个 Bash 终端。
+- Open a Bash terminal.
 
-- 创建一个新目录来存放工作空间。例如，可以在用户的主目录下创建一个名为“limx_ws”的目录：
+- Create a new directory for the workspace. For example, create a directory named "limx_ws" in your home directory:
 
   ```
   mkdir -p ~/limx_ws/src
   ```
 
-- 下载运动控制开发接口：
+- Download the motion control development interface:
 
   ```
   cd ~/limx_ws/src
   git clone https://github.com/limxdynamics/pointfoot-sdk-lowlevel.git
   ```
 
-- 下载 Gazebo 仿真器：
+- Download the Gazebo simulator:
 
   ```
   cd ~/limx_ws/src
   git clone https://github.com/limxdynamics/pointfoot-gazebo-ros.git
   ```
 
-- 下载机器人模型描述文件
+- Download the robot description files:
 
   ```
   cd ~/limx_ws/src
   git clone https://github.com/limxdynamics/robot-description.git
   ```
 
-- 编译工程：
+- Build the workspace:
 
   ```
   cd ~/limx_ws
   catkin_make install
   ```
 
-- 选择机器人类型
+- Choose the robot type
 
-  - 通过 Shell 命令 `tree -L 1 src/robot-description/pointfoot ` 列出可用的机器人类型：
+  - List the available robot types with `tree -L 1 src/robot-description/pointfoot `:
 
     ```
     src/robot-description/pointfoot
@@ -82,23 +82,23 @@ sudo apt install ros-noetic-urdf \
     └── WF_TRON1A
     ```
 
-  - 以`PF_P441C`（请根据实际机器人类型进行替换）为例，设置机器人型号类型：
+  - Taking `PF_P441C` as an example (replace it with your actual robot type), set the robot type:
 
     ```
     echo 'export ROBOT_TYPE=PF_P441C' >> ~/.bashrc && source ~/.bashrc
     ```
 
-- 运行仿真
+- Run the simulation:
 
   ```
   source install/setup.bash
   roslaunch pointfoot_gazebo empty_world.launch
   ```
 
-- 运行控制例程，确保仿真器中机器人有运动，说明仿真环境搭建完成：
+- Run the control example. If the robot moves in the simulator, the simulation environment is set up:
 
   ```
   source install/setup.bash
   rosrun pointfoot_sdk_lowlevel pf_groupJoints_move
   ```
-  ![](doc/simulator.gif)
+  ![The robot moving in the Gazebo simulator](doc/simulator.gif)
