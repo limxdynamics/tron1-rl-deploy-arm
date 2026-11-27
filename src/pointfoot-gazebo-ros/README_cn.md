@@ -1,106 +1,17 @@
-# pointfoot-gazebo-ros
+# pointfoot-gazebo-ros（内置副本）
 
 [English](README.md) | **中文**
 
+这是 `tron1-rl-deploy-arm` 工作空间内置的 TRON1 Gazebo 仿真器（`pointfoot_gazebo` 和 `pointfoot_sdk_sim`），随 `src/` 下的其他包一起编译，不需要单独克隆或编译。请按根目录 [README](../../README_cn.md) 操作：安装依赖、克隆本仓库，在工作空间根目录执行 `catkin_make install`，然后用 `roslaunch robot_hw pointfoot_hw_sim.launch` 启动仿真。
 
+> 不要再把 `pointfoot-gazebo-ros`、`pointfoot-sdk-lowlevel` 或 `robot-description` 克隆进这个工作空间。它们已经在 `src/` 下，重复的副本会导致 catkin 包重名、编译失败。
 
-## 1. 搭建开发环境
+## 机型
 
-我们推荐在 Ubuntu 20.04 操作系统上建立基于 ROS Noetic 的算法开发环境。ROS 提供了一系列工具和库，如核心库、通信库和仿真工具（如 Gazebo），极大地便利了机器人算法的开发、测试和部署。这些资源为用户提供了一个丰富而完整的算法开发环境。
+本工作空间只支持两款带机械臂的 TRON1：`SF_TRON1A`（双足）和 `WF_TRON1A`（轮足），模型在 [`src/robot-description/pointfoot/`](../robot-description/pointfoot)。`ROBOT_TYPE` 的设置方法见根目录 README。
 
-ROS Noetic 安装请参考文档：https://wiki.ros.org/noetic/Installation/Ubuntu ，选择“ros-noetic-desktop-full”进行安装。ROS Noetic 安装完成后，Bash 终端输入以下 Shell 命令，安装开发环境所依赖的库：
+![机器人在 Gazebo 仿真器中运动](doc/simulator.gif)
 
-```
-sudo apt-get update
-sudo apt install ros-noetic-urdf \
-                 ros-noetic-kdl-parser \
-                 ros-noetic-urdf-parser-plugin \
-                 ros-noetic-hardware-interface \
-                 ros-noetic-controller-manager \
-                 ros-noetic-controller-interface \
-                 ros-noetic-controller-manager-msgs \
-                 ros-noetic-control-msgs \
-                 ros-noetic-ros-control \
-                 ros-noetic-gazebo-* \
-                 ros-noetic-rqt-gui \
-                 ros-noetic-rqt-controller-manager \
-                 ros-noetic-plotjuggler* \
-                 cmake build-essential libpcl-dev libeigen3-dev libopencv-dev libmatio-dev \
-                 python3-pip libboost-all-dev libtbb-dev liburdfdom-dev liborocos-kdl-dev -y
-```
+## 单独使用仿真器
 
-## 2. 创建工作空间
-
-可以按照以下步骤，创建一个算法开发工作空间：
-
-- 打开一个 Bash 终端。
-
-- 创建一个新目录来存放工作空间。例如，可以在用户的主目录下创建一个名为“limx_ws”的目录：
-
-  ```
-  mkdir -p ~/limx_ws/src
-  ```
-
-- 下载运动控制开发接口：
-
-  ```
-  cd ~/limx_ws/src
-  git clone https://github.com/limxdynamics/pointfoot-sdk-lowlevel.git
-  ```
-
-- 下载 Gazebo 仿真器：
-
-  ```
-  cd ~/limx_ws/src
-  git clone https://github.com/limxdynamics/pointfoot-gazebo-ros.git
-  ```
-
-- 下载机器人模型描述文件
-
-  ```
-  cd ~/limx_ws/src
-  git clone https://github.com/limxdynamics/robot-description.git
-  ```
-
-- 编译工程：
-
-  ```
-  cd ~/limx_ws
-  catkin_make install
-  ```
-
-- 选择机器人类型
-
-  - 通过 Shell 命令 `tree -L 1 src/robot-description/pointfoot ` 列出可用的机器人类型：
-
-    ```
-    src/robot-description/pointfoot
-    ├── PF_P441A
-    ├── PF_P441B
-    ├── PF_P441C
-    ├── PF_P441C2
-    ├── PF_TRON1A
-    ├── SF_TRON1A
-    └── WF_TRON1A
-    ```
-
-  - 以`PF_P441C`（请根据实际机器人类型进行替换）为例，设置机器人型号类型：
-
-    ```
-    echo 'export ROBOT_TYPE=PF_P441C' >> ~/.bashrc && source ~/.bashrc
-    ```
-
-- 运行仿真
-
-  ```
-  source install/setup.bash
-  roslaunch pointfoot_gazebo empty_world.launch
-  ```
-
-- 运行控制例程，确保仿真器中机器人有运动，说明仿真环境搭建完成：
-
-  ```
-  source install/setup.bash
-  rosrun pointfoot_sdk_lowlevel pf_groupJoints_move
-  ```
-  ![](doc/simulator.gif)
+在本工作空间之外，请使用独立仓库 [tron1-gazebo-ros](https://github.com/limxdynamics/tron1-gazebo-ros)（原 `pointfoot-gazebo-ros`），并配合 [limxsdk-lowlevel](https://github.com/limxdynamics/limxsdk-lowlevel) 和 [tron1-robot-description](https://github.com/limxdynamics/tron1-robot-description) 使用。
